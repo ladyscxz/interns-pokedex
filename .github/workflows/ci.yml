@@ -49,12 +49,14 @@ jobs:
           echo "=========================================="
 
   gitignore-check:
-    name: Gitignore Integrity Check
     runs-on: ubuntu-latest
+    name: Gitignore Integrity Check
 
     steps:
-      - name: Checkout repository
+      - name: Checkout base branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Verify .gitignore integrity
         env:
@@ -62,28 +64,21 @@ jobs:
         run: |
           set -e
 
-          # Ensure secret exists
           if [ -z "$EXPECTED_GITIGNORE" ]; then
             echo "::error::EXPECTED_GITIGNORE secret is missing or empty."
             exit 1
           fi
 
-          # Write expected gitignore from secret
           printf "%s" "$EXPECTED_GITIGNORE" > /tmp/expected_gitignore
 
-          # Normalize line endings (CRLF -> LF)
           sed -i 's/\r$//' .gitignore
           sed -i 's/\r$//' /tmp/expected_gitignore
 
-          # Compute hashes
           ACTUAL_HASH=$(sha256sum .gitignore | awk '{print $1}')
           EXPECTED_HASH=$(sha256sum /tmp/expected_gitignore | awk '{print $1}')
 
-          # Compare hashes
           if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
             echo "::error::.gitignore has been modified! This file is protected and cannot be changed."
-            echo "Expected hash: $EXPECTED_HASH"
-            echo "Actual hash:   $ACTUAL_HASH"
             exit 1
           fi
 
